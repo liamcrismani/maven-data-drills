@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.16.5"
+__generated_with = "0.17.7"
 app = marimo.App(width="columns")
 
 
 @app.cell(column=0, hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Turning Bullish
 
     Maven Data Drill #07 https://mavenanalytics.io/data-drills/turning-bullish
@@ -22,15 +21,14 @@ def _(mo):
 
     To complete the drill, create a table containing the date, close price, and three new columns:
 
-        - **50-day moving average:** The average closing price for the last 50 trading days, calculated for each date
+    - **50-day moving average:** The average closing price for the last 50 trading days, calculated for each date
 
-        - **200-day moving average:** The average closing price for the last 200 trading days, calculated for each date
+    - **200-day moving average:** The average closing price for the last 200 trading days, calculated for each date
 
-        - **Golden Cross:** A binary field (1/0) that equals 1 only on the exact date when the 50-day average crosses from below the 200-day average; otherwise 0
+    - **Golden Cross:** A binary field (1/0) that equals 1 only on the exact date when the 50-day average crosses from below the 200-day average; otherwise 0
 
     ![result_table](https://framerusercontent.com/images/T3csxYZQayr0beVSf7Aigj1x7gM.png?scale-down-to=1024&width=1388&height=493)
-    """
-    )
+    """)
     return
 
 
@@ -41,12 +39,86 @@ def _():
     import os
     import polars as pl
     import matplotlib.pyplot as plt
-    return (mo,)
+    return mo, os, pl, sys
+
+
+@app.cell(hide_code=True)
+def _(os, sys):
+    # Get the current file's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Add the parent directory to sys.path
+    sys.path.append(os.path.dirname(current_dir))
+
+    url = "https://maven-datasets.s3.us-east-1.amazonaws.com/Data+Drills/SPY_close_price_5Y.csv"
+
+    # Download file
+    from utils import download
+
+    download(url, outpath="turningbullish/prices.csv")
+    return
 
 
 @app.cell
-def _():
-    from utils import download
+def _(pl):
+    # load data
+    prices = pl.read_csv(
+        "turningbullish/prices.csv",
+        try_parse_dates=True,
+    ).sort(
+        by="Date"
+    )
+
+    # rename columns
+    prices.columns = ["Date", "Close Price"]
+    return (prices,)
+
+
+@app.cell
+def _(prices):
+    prices
+    return
+
+
+@app.cell
+def _(mo, prices):
+    df = mo.sql(
+        f"""
+        SELECT
+        	"Date",
+        	"Close Price",
+        	AVG("Close Price") OVER(
+            	ORDER BY "Date" ASC
+            	RANGE BETWEEN 49 PRECEDING AND CURRENT ROW
+            ) AS '50-Day Avg',
+        	AVG("Close Price") OVER(
+            	ORDER BY "Date" ASC
+            	RANGE BETWEEN 199 PRECEDING AND CURRENT ROW
+            ) AS '200-Day Avg',
+        	IF("50-Day Avg" > "200-Day Avg", 1, 0) AS 'Golden Cross'
+        FROM prices
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## TODO
+
+    - create rolling 50 day avg
+    - create rolling 200 day avg
+    - create Golden cross col
+
+    ### Approach
+    - order data set
+    - window functions for rolling average
+    - case or if for golden cross
+
+    ### Bonus
+    - recreate graph shown in drill brief - a tempting challenge. The orange and blue lines are matplotlib: unmistakable!
+    """)
     return
 
 
