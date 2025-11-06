@@ -84,6 +84,8 @@ def _(prices):
 def _(mo, prices):
     df = mo.sql(
         f"""
+        -- cte to calc moving averages
+        WITH cte AS (
         SELECT
         	"Date",
         	"Close Price",
@@ -94,9 +96,20 @@ def _(mo, prices):
         	AVG("Close Price") OVER(
             	ORDER BY "Date" ASC
             	RANGE BETWEEN 199 PRECEDING AND CURRENT ROW
-            ) AS '200-Day Avg',
-        	IF("50-Day Avg" > "200-Day Avg", 1, 0) AS 'Golden Cross'
+            ) AS '200-Day Avg'
         FROM prices
+        )
+
+        SELECT
+        	*,
+            CASE WHEN 
+                -- previous value in 50 < previous value in 200
+                LAG("50-Day Avg") OVER() <= LAG("200-Day Avg") OVER()
+                -- and next value in 50 < next value in 200
+                AND LEAD("50-Day Avg") OVER() <= LEAD("200-Day Avg") OVER()
+            	AND "50-Day Avg" > "200-Day Avg"
+            THEN 1 ELSE 0 END AS 'Golden Cross'
+        FROM cte
         """
     )
     return
