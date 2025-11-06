@@ -85,31 +85,56 @@ def _(mo, prices):
     df = mo.sql(
         f"""
         -- cte to calc moving averages
-        WITH cte AS (
+        WITH
+            cte AS (
+                SELECT
+                    "Date",
+                    "Close Price",
+                    AVG("Close Price") OVER (
+                        ORDER BY
+                            "Date" ASC RANGE BETWEEN 49 PRECEDING
+                            AND CURRENT ROW
+                    ) AS '50-Day Avg',
+                    AVG("Close Price") OVER (
+                        ORDER BY
+                            "Date" ASC RANGE BETWEEN 199 PRECEDING
+                            AND CURRENT ROW
+                    ) AS '200-Day Avg'
+                FROM
+                    prices
+            )
         SELECT
-        	"Date",
-        	"Close Price",
-        	AVG("Close Price") OVER(
-            	ORDER BY "Date" ASC
-            	RANGE BETWEEN 49 PRECEDING AND CURRENT ROW
-            ) AS '50-Day Avg',
-        	AVG("Close Price") OVER(
-            	ORDER BY "Date" ASC
-            	RANGE BETWEEN 199 PRECEDING AND CURRENT ROW
-            ) AS '200-Day Avg'
-        FROM prices
-        )
+            *,
+            -- previous value in 50 < previous value in 200
+            LAG ("50-Day Avg") OVER () AS 'Previous_50',
+            LAG ("200-Day Avg") OVER () AS 'Previous_200',
+            -- and next value in 50 < next value in 200
+            LEAD ("50-Day Avg") OVER () AS 'next_50',
+            LEAD ("200-Day Avg") OVER () AS 'next_200'
+        FROM
+            cte
+        """
+    )
+    return (df,)
 
+
+@app.cell
+def _(df, mo):
+    _df = mo.sql(
+        f"""
         SELECT
-        	*,
-            CASE WHEN 
-                -- previous value in 50 < previous value in 200
-                LAG("50-Day Avg") OVER() <= LAG("200-Day Avg") OVER()
-                -- and next value in 50 < next value in 200
-                AND LEAD("50-Day Avg") OVER() <= LEAD("200-Day Avg") OVER()
-            	AND "50-Day Avg" > "200-Day Avg"
-            THEN 1 ELSE 0 END AS 'Golden Cross'
-        FROM cte
+            "Date",
+            "Close Price",
+            ROUND("50-Day Avg", 2) AS '50-Day Avg',
+            ROUND("200-Day Avg", 2) AS '200-Day Avg',
+            CASE
+                WHEN "Previous_50" <= "Previous_200"
+                --AND "next_50" <= "next_200"
+                AND "50-Day Avg" > "200-Day Avg" THEN 1
+                ELSE 0
+            END AS 'Golden Cross'
+        FROM
+            df
         """
     )
     return
