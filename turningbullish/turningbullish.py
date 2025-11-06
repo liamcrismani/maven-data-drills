@@ -32,6 +32,38 @@ def _(mo):
     return
 
 
+@app.cell(hide_code=True)
+def _(mo):
+    mo.callout(
+        kind="info",
+        value=mo.md("**What was the close price on the date of the most recent \"golden cross\"? (numbers only, no currency symbols)**")
+    )
+    return
+
+
+@app.cell
+def _(mo, solution):
+    _df = mo.sql(
+        f"""
+        SELECT
+        	"Close Price"
+        FROM solution
+        WHERE "Golden Cross" = 1
+        ORDER BY "Date" DESC
+        LIMIT 1
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Time to solve: 1hour 10 minutes
+    """)
+    return
+
+
 @app.cell(column=1)
 def _():
     import marimo as mo
@@ -92,12 +124,12 @@ def _(mo, prices):
                     "Close Price",
                     AVG("Close Price") OVER (
                         ORDER BY
-                            "Date" ASC RANGE BETWEEN 49 PRECEDING
+                            "Date" ASC ROWS BETWEEN 50 PRECEDING
                             AND CURRENT ROW
                     ) AS '50-Day Avg',
                     AVG("Close Price") OVER (
                         ORDER BY
-                            "Date" ASC RANGE BETWEEN 199 PRECEDING
+                            "Date" ASC ROWS BETWEEN 200 PRECEDING
                             AND CURRENT ROW
                     ) AS '200-Day Avg'
                 FROM
@@ -120,7 +152,7 @@ def _(mo, prices):
 
 @app.cell
 def _(df, mo):
-    _df = mo.sql(
+    solution = mo.sql(
         f"""
         SELECT
             "Date",
@@ -137,7 +169,7 @@ def _(df, mo):
             df
         """
     )
-    return
+    return (solution,)
 
 
 @app.cell(hide_code=True)
