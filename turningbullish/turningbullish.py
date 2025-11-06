@@ -1,7 +1,10 @@
 import marimo
 
 __generated_with = "0.17.7"
-app = marimo.App(width="columns")
+app = marimo.App(
+    width="columns",
+    app_title="Maven Data Drill - Turning Bullish",
+)
 
 
 @app.cell(column=0, hide_code=True)
@@ -71,31 +74,17 @@ def _():
     import os
     import polars as pl
     import matplotlib.pyplot as plt
-    return mo, os, pl, sys
-
-
-@app.cell(hide_code=True)
-def _(os, sys):
-    # Get the current file's directory
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Add the parent directory to sys.path
-    sys.path.append(os.path.dirname(current_dir))
-
-    url = "https://maven-datasets.s3.us-east-1.amazonaws.com/Data+Drills/SPY_close_price_5Y.csv"
-
-    # Download file
-    from utils import download
-
-    download(url, outpath="turningbullish/prices.csv")
-    return
+    return mo, pl
 
 
 @app.cell
 def _(pl):
+    # Save data url
+    url = "https://maven-datasets.s3.us-east-1.amazonaws.com/Data+Drills/SPY_close_price_5Y.csv"
+
     # load data
     prices = pl.read_csv(
-        "turningbullish/prices.csv",
+        url,
         try_parse_dates=True,
     ).sort(
         by="Date"
@@ -108,6 +97,7 @@ def _(pl):
 
 @app.cell
 def _(prices):
+    # Show data
     prices
     return
 
@@ -156,7 +146,7 @@ def _(df, mo):
         f"""
         SELECT
             "Date",
-            "Close Price",
+            ROUND("Close Price", 2) AS 'Close Price',
             ROUND("50-Day Avg", 2) AS '50-Day Avg',
             ROUND("200-Day Avg", 2) AS '200-Day Avg',
             CASE
