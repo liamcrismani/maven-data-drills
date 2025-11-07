@@ -2,12 +2,12 @@ import marimo
 
 __generated_with = "0.17.7"
 app = marimo.App(
-    width="medium",
+    width="columns",
     app_title="Maven Data Drill - Turning Bullish",
 )
 
 
-@app.cell(hide_code=True)
+@app.cell(column=0, hide_code=True)
 def _(mo):
     mo.md(r"""
     # Turning Bullish
@@ -57,11 +57,15 @@ def _(mo, solution):
     _df = mo.sql(
         f"""
         SELECT
-        	"Close Price"
-        FROM solution
-        WHERE "Golden Cross" = 1
-        ORDER BY "Date" DESC
-        LIMIT 1
+            "Close Price"
+        FROM
+            solution
+        WHERE
+            "Golden Cross" = 1
+        ORDER BY
+            "Date" DESC
+        LIMIT
+            1
         """
     )
     return
@@ -76,6 +80,65 @@ def _(mo):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Bonus Exercise
+    Reproduce the example graph in the exercise brief.
+    """)
+    return
+
+
+@app.cell
+def _(mdates, pd, plt, solution):
+    # create axis
+    fig, ax = plt.subplots()
+
+    # convert solution to pandas df
+    pd_df = solution.to_pandas()
+    pd_df.set_index("Date", inplace=True)
+    pd_df = pd_df["2025-01-01":"2025-10-31"]
+
+    # plot lines
+    ax.plot(pd_df.index, pd_df["200-Day Avg"], label="200-Day Avg")
+    ax.plot(pd_df.index, pd_df["50-Day Avg"], label="50-Day Avg")
+    ax.plot(pd_df.index, pd_df["Close Price"], label="Close Price", color="gray")
+
+    # add chart properties
+    ax.set_ylabel("SPDR S&P 500 Close Price ($)")
+    ax.set_xlabel("2025")
+
+    # Customise legend
+    ax.legend(
+        labels=["200 day moving average", "50 day moving average", "close price"],
+        loc="upper center",
+        ncols=2,
+        edgecolor="white",
+    )
+
+    # Annotate golden cross
+    ax.annotate(
+        text="Golden cross",
+        xy=(pd.Timestamp(2025, 7, 1), 581.99),
+        xytext=(pd.Timestamp(2025, 7, 15), 525),
+        arrowprops=dict(facecolor="gold", edgecolor="gold"),
+    )
+
+    # Customise axis ticks
+    ax.set_ylim([475, 700])
+    ax.set_xlim([pd.Timestamp("2025-01-01"), pd_df.index[-1]])
+
+    # use month date format instead of ISO
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+
+    # set spine colours
+    ax.spines["top"].set_color("white")
+    ax.spines["right"].set_color("white")
+
+    ax
+    return
+
+
+@app.cell(column=1, hide_code=True)
 def _(mo):
     mo.md(r"""
     ## Workings
@@ -104,20 +167,14 @@ def _(pl):
     prices = pl.read_csv(
         url,
         try_parse_dates=True,
-    ).sort(
-        by="Date"
-    )
+    ).sort(by="Date")
 
     # rename columns
     prices.columns = ["Date", "Close Price"]
-    return (prices,)
 
-
-@app.cell
-def _(prices):
     # Show data
     prices
-    return
+    return (prices,)
 
 
 @app.cell
@@ -143,6 +200,7 @@ def _(mo, prices):
                 FROM
                     prices
             )
+            -- query the cte to calculate previous/next day values
         SELECT
             *,
             -- previous value in 50 < previous value in 200
@@ -162,6 +220,8 @@ def _(mo, prices):
 def _(df, mo):
     solution = mo.sql(
         f"""
+        /* query the above output, using previous/next day values to determine
+        golden cross events */
         SELECT
             "Date",
             ROUND("Close Price", 2) AS 'Close Price',
@@ -178,80 +238,6 @@ def _(df, mo):
         """
     )
     return (solution,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    ## Bonus Exercise
-    Reproduce the example graph in the exercise brief.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(mdates, pd, plt, solution):
-    # create axis
-    fig, ax = plt.subplots()
-
-    # convert solution to pandas df
-    pd_df = solution.to_pandas()
-    pd_df.set_index("Date", inplace=True)
-    pd_df = pd_df["2025-01-01":"2025-10-31"]
-
-    # plot lines
-    ax.plot(
-        pd_df.index,
-        pd_df["200-Day Avg"],
-        label="200-Day Avg"
-    )
-    ax.plot(
-        pd_df.index,
-        pd_df["50-Day Avg"],
-        label="50-Day Avg"
-    )
-    ax.plot(
-        pd_df.index,
-        pd_df["Close Price"],
-        label="Close Price",
-        color='gray'
-    )
-
-    # add chart properties
-    ax.set_ylabel("SPDR S&P 500 Close Price ($)")
-    ax.set_xlabel("2025")
-
-    # Customise legend
-    ax.legend(
-        labels=["200 day moving average", "50 day moving average", "close price"],
-        loc="upper center",
-        ncols=2,
-        edgecolor="white"
-    )
-
-    # Annotate golden cross
-    ax.annotate(
-        text="Golden cross",
-        xy=(pd.Timestamp(2025, 7, 1), 581.99),
-        xytext=(pd.Timestamp(2025, 7, 15), 525),
-        arrowprops=dict(facecolor="gold", edgecolor="gold")
-    )
-
-    # Customise axis ticks
-    ax.set_ylim([475, 700])
-    ax.set_xlim(
-        [pd.Timestamp("2025-01-01"), pd_df.index[-1]]
-    )
-
-    # use month date format instead of ISO
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%b'))
-
-    # set spine colours
-    ax.spines["top"].set_color("white")
-    ax.spines["right"].set_color("white")
-
-    ax
-    return
 
 
 if __name__ == "__main__":
